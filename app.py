@@ -38,6 +38,10 @@ BASE_LIVING_COST_BY_FAMILY: dict[str, float] = {
 FAMILY_OPTIONS = list(BASE_LIVING_COST_BY_FAMILY.keys())
 VIBE_OPTIONS = ["Minimalist", "Balanced", "Spender"]
 
+# Own housing: quick ACS median vs full mortgage calculator (persisted as ``dash_own_baseline_mode``).
+OWN_BASELINE_MODE_ACS = "acs_estimate"
+OWN_BASELINE_MODE_CALC = "mortgage_calculator"
+
 
 def _wfl_short_label(idx: int) -> str:
     return _i18n.t(f"wfl_short_{idx}")
@@ -94,6 +98,25 @@ def _fmt_housing_ws_side(s: str) -> str:
 
 def _fmt_housing_ui_tab(s: str) -> str:
     return _i18n.t("house_tab_rent_lbl") if s == "rent" else _i18n.t("house_tab_own_lbl")
+
+
+def _fmt_own_baseline_mode(mode: str) -> str:
+    return _i18n.t("house_own_mode_calc") if mode == OWN_BASELINE_MODE_CALC else _i18n.t("house_own_mode_acs")
+
+
+def _sync_own_baseline_from_widgets() -> None:
+    """Align ``dash_own_mortgage_step`` and modeled total with ``dash_own_baseline_mode``."""
+    bm = str(st.session_state.get("dash_own_baseline_mode") or OWN_BASELINE_MODE_ACS)
+    if bm not in (OWN_BASELINE_MODE_ACS, OWN_BASELINE_MODE_CALC):
+        bm = OWN_BASELINE_MODE_ACS
+        st.session_state.dash_own_baseline_mode = bm
+    st.session_state.dash_own_mortgage_step = bm == OWN_BASELINE_MODE_CALC
+    if bm == OWN_BASELINE_MODE_ACS:
+        st.session_state.dash_housing_model_own_monthly = 0.0
+    else:
+        st.session_state.dash_own_came_from_unsure = (
+            st.session_state.get("dash_own_median_confirm") == _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE
+        )
 
 
 def _fmt_401k_choice(v: str) -> str:
@@ -435,7 +458,7 @@ def _inject_intro_fullbleed_css() -> None:
           .fv-hero-title {
             font-family: "Playfair Display", Georgia, "Times New Roman", serif;
             margin: 0;
-            font-size: clamp(2.6rem, 5.5vw, 4.5rem);
+            font-size: clamp(2rem, 4.2vw, 3rem);
             font-weight: 600;
             line-height: 1.05;
             letter-spacing: -0.04em;
@@ -451,9 +474,9 @@ def _inject_intro_fullbleed_css() -> None:
           .fv-hero-line {
             font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
             margin: 0;
-            font-size: clamp(1.25rem, 2.2vw, 1.45rem);
+            font-size: clamp(1.0625rem, 1.9vw, 1.2rem);
             font-weight: 400;
-            line-height: 1.8;
+            line-height: 1.65;
             color: #1a1a1a;
             max-width: 48ch;
             margin-left: auto;
@@ -467,7 +490,7 @@ def _inject_intro_fullbleed_css() -> None:
           }
           section.main [data-testid="stMarkdownContainer"] p.fv-intro-cta-line {
             font-family: "Source Serif 4", Georgia, serif !important;
-            font-size: clamp(1.25rem, 2.6vw, 1.4rem) !important;
+            font-size: clamp(1rem, 2.2vw, 1.15rem) !important;
             font-weight: 500 !important;
             line-height: 1.5 !important;
             color: #4b5563 !important;
@@ -482,7 +505,7 @@ def _inject_intro_fullbleed_css() -> None:
           section.main .block-container .stButton > button[kind="primary"] {
             min-height: 4.1rem !important;
             padding: 1.05rem 2.35rem !important;
-            font-size: 1rem !important;
+            font-size: 1.0625rem !important;
             font-weight: 600 !important;
             letter-spacing: 0.08em !important;
             text-transform: uppercase !important;
@@ -512,6 +535,12 @@ def _inject_intro_fullbleed_css() -> None:
           section.main .block-container .stButton > button[kind="primary"]:focus-visible {
             outline: 3px solid #1a1a1a !important;
             outline-offset: 2px !important;
+          }
+          section.main .block-container .stButton > button[kind="primary"] *,
+          section.main .block-container .stButton > button[kind="primary"]:hover *,
+          section.main .block-container .stButton > button[kind="primary"]:active * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
           }
         </style>
         """,
@@ -545,6 +574,8 @@ def _inject_emerald_theme() -> None:
           section.main [data-testid="stWidgetLabel"] p,
           section.main label[data-testid="stWidgetLabel"] p {
             font-family: "Noto Serif SC", "Source Han Serif SC", "Source Serif 4", Georgia, serif !important;
+            font-size: 1.0625rem !important;
+            line-height: 1.5 !important;
           }
           section.main button[kind="segmented_control"],
           section.main button[kind="segmented_controlActive"],
@@ -580,7 +611,7 @@ def _inject_emerald_theme() -> None:
             --fv-btn-shadow-active: 0 2px 4px -1px rgb(0 0 0 / 0.1);
           }
           html {
-            font-size: 144%;
+            font-size: 100%;
           }
           html, body, .stApp {
             -webkit-font-smoothing: antialiased;
@@ -594,39 +625,40 @@ def _inject_emerald_theme() -> None:
           }
           section.main h1 {
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: clamp(2.5rem, 4.5vw, 3.75rem) !important;
+            font-size: clamp(2rem, 4vw, 2.75rem) !important;
             font-weight: 600 !important;
             letter-spacing: -0.03em !important;
             line-height: 1.08 !important;
           }
           section.main h2 {
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: clamp(1.85rem, 3.2vw, 2.65rem) !important;
+            font-size: clamp(1.5rem, 2.8vw, 2rem) !important;
             font-weight: 600 !important;
             letter-spacing: -0.03em !important;
           }
           section.main h3 {
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: clamp(1.5rem, 2.6vw, 2.15rem) !important;
+            font-size: clamp(1.25rem, 2.4vw, 1.65rem) !important;
             font-weight: 600 !important;
             letter-spacing: -0.025em !important;
           }
           section.main [data-testid="stCaptionContainer"] {
             font-family: "JetBrains Mono", ui-monospace, monospace !important;
-            font-size: 0.9375rem !important;
+            font-size: 0.875rem !important;
             letter-spacing: 0.05em !important;
             text-transform: uppercase !important;
           }
-          section.main [data-testid="stMarkdownContainer"] p {
-            font-size: 1.5rem !important;
-            line-height: 1.8 !important;
+          section.main [data-testid="stMarkdownContainer"] p,
+          section.main [data-testid="stMarkdownContainer"] li {
+            font-size: 1.125rem !important;
+            line-height: 1.65 !important;
           }
           .stButton > button {
-            font-size: 1rem !important;
+            font-size: 1.0625rem !important;
             border-radius: 0.375rem !important;
           }
           [data-testid="stMetricLabel"] {
-            font-size: 1.05rem !important;
+            font-size: 1rem !important;
             letter-spacing: 0.02em !important;
           }
           /* Metric title row: test id is on the <label>, not a wrapping div — force dark text. */
@@ -635,15 +667,16 @@ def _inject_emerald_theme() -> None:
             color: var(--fv-heading) !important;
           }
           div[data-testid="stMetricValue"] {
-            font-size: 1.65rem !important;
+            font-size: 1.3125rem !important;
             font-family: "JetBrains Mono", ui-monospace, monospace !important;
             font-weight: 600 !important;
             letter-spacing: -0.02em !important;
             color: var(--fv-accent) !important;
           }
           [data-testid="stWidgetLabel"] p,
-          label[data-testid="stWidgetLabel"] p {
-            font-size: 1.4rem !important;
+          label[data-testid="stWidgetLabel"] p,
+          label[data-testid="stWidgetLabel"] {
+            font-size: 1.0625rem !important;
             line-height: 1.5 !important;
           }
           [data-testid="stWidgetLabel"],
@@ -670,7 +703,7 @@ def _inject_emerald_theme() -> None:
             color: var(--fv-heading) !important;
           }
           [data-testid="stDataFrame"] {
-            font-size: 1.15rem !important;
+            font-size: 1rem !important;
           }
           section.main .block-container {
             padding-top: 2rem !important;
@@ -706,7 +739,7 @@ def _inject_emerald_theme() -> None:
             font-weight: 600 !important;
             border-radius: 0.375rem !important;
             padding: 0.9rem 1.85rem !important;
-            font-size: 1rem !important;
+            font-size: 1.0625rem !important;
             letter-spacing: 0.08em !important;
             text-transform: uppercase !important;
             box-shadow: var(--fv-btn-shadow) !important;
@@ -727,6 +760,23 @@ def _inject_emerald_theme() -> None:
           }
           .stButton > button[kind="primary"] {
             /* Inherits same black / white treatment as base `.stButton > button` */
+          }
+          /* st.button: keep label nodes white on dark fill (hover/active/focus) — avoids Streamlit markdown spans going dark. */
+          .stButton > button[kind="primary"],
+          .stButton > button[kind="primary"]:hover,
+          .stButton > button[kind="primary"]:active:not(:disabled),
+          .stButton > button[kind="primary"]:focus-visible,
+          .stButton > button[kind="secondary"],
+          .stButton > button[kind="secondary"]:hover,
+          .stButton > button[kind="secondary"]:active:not(:disabled),
+          .stButton > button[kind="secondary"]:focus-visible {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
+          .stButton > button[kind="primary"] *,
+          .stButton > button[kind="secondary"] * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
           }
           .stButton > button:focus-visible {
             outline: 3px solid #1a1a1a !important;
@@ -788,7 +838,7 @@ def _inject_emerald_theme() -> None:
           /* Value label above thumb */
           .stSlider [data-baseweb="slider"] div:has(> div[role="slider"]) > div:not([role="slider"]),
           [data-testid="stSlider"] [data-baseweb="slider"] div:has(> div[role="slider"]) > div:not([role="slider"]) {
-            font-size: clamp(1.125rem, 2.8vw, 1.375rem) !important;
+            font-size: clamp(1rem, 2.2vw, 1.125rem) !important;
             font-weight: 600 !important;
             color: var(--fv-slider-fill) !important;
             -webkit-text-fill-color: var(--fv-slider-fill) !important;
@@ -923,7 +973,7 @@ def _inject_emerald_theme() -> None:
           section.main [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] h3 {
             color: var(--fv-text) !important;
             -webkit-text-fill-color: var(--fv-text) !important;
-            font-size: 1.2rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.65 !important;
           }
           section.main [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] a {
@@ -953,16 +1003,18 @@ def _inject_emerald_theme() -> None:
             border-radius: 0 !important;
           }
           section.main button[role="tab"][aria-selected="true"] {
-            color: #ffffff !important;
-            background: #1a1a1a !important;
+            color: #1a1a1a !important;
+            -webkit-text-fill-color: #1a1a1a !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
             font-weight: bold !important;
-            border-bottom: none !important;
+            border-bottom: 3px solid #1a1a1a !important;
           }
           section.main [data-testid="stSegmentedControl"] {
             background: #ffffff !important;
             border-radius: 0.375rem !important;
             padding: 0.25rem !important;
-            border: 2px solid #1a1a1a !important;
+            border: 2px solid #d1d5db !important;
             box-shadow: var(--fv-card-shadow) !important;
           }
           section.main [data-testid="stSegmentedControl"] > div {
@@ -970,13 +1022,17 @@ def _inject_emerald_theme() -> None:
             border: none !important;
           }
           section.main [data-testid="stSegmentedControl"] button,
+          section.main [data-testid="stSegmentedControl"] label {
+            background-image: none !important;
+          }
+          section.main [data-testid="stSegmentedControl"] button,
           section.main [data-testid="stSegmentedControl"] label,
           section.main button[kind="segmented_control"] {
             background: #ffffff !important;
             background-color: #ffffff !important;
-            border: 2px solid #1a1a1a !important;
+            border: 2px solid #d1d5db !important;
             box-shadow: none !important;
-            min-height: 5rem !important;
+            min-height: 4rem !important;
           }
           section.main [data-testid="stSegmentedControl"] p,
           section.main [data-testid="stSegmentedControl"] span,
@@ -985,9 +1041,9 @@ def _inject_emerald_theme() -> None:
           section.main button[kind="segmented_control"] span,
           section.main button[kind="segmented_control"] strong,
           section.main button[kind="segmented_control"] {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
-            font-size: 1.25rem !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            font-size: 1.0625rem !important;
             font-weight: 700 !important;
           }
           section.main [data-testid="stSegmentedControl"] button[aria-selected="true"],
@@ -1001,7 +1057,7 @@ def _inject_emerald_theme() -> None:
             background-color: #1a1a1a !important;
             border: 2px solid #1a1a1a !important;
             border-radius: 0.25rem !important;
-            min-height: 5rem !important;
+            min-height: 4rem !important;
             box-shadow: none !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
@@ -1026,7 +1082,7 @@ def _inject_emerald_theme() -> None:
           section.main button[kind="segmented_controlActive"] {
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
-            font-size: 1.25rem !important;
+            font-size: 1.0625rem !important;
             font-weight: 700 !important;
           }
           /* Inputs (legacy widgets without Base Web wrapper) */
@@ -1039,25 +1095,29 @@ def _inject_emerald_theme() -> None:
             border-radius: 0.375rem !important;
             box-shadow: var(--fv-card-shadow) !important;
             font-family: "Source Serif 4", Georgia, serif !important;
+            font-size: 1.0625rem !important;
           }
           section.main .stTextInput input:focus,
           section.main .stNumberInput input:focus,
           section.main textarea:focus {
             border-color: var(--fv-accent) !important;
-            background-color: #ecfdf5 !important;
+            background-color: #ffffff !important;
+            background: #ffffff !important;
             box-shadow: var(--fv-card-shadow), 0 0 0 3px rgba(5, 150, 105, 0.25) !important;
             outline: none !important;
           }
-          /* Base Web input shell (Streamlit 1.3x+) — soft card, emerald focus */
+          /* Base Web input shell (Streamlit 1.3x+) — white surface only (no dark or tinted fill) */
           section.main [data-baseweb="base-input"] {
             background-color: #ffffff !important;
+            background: #ffffff !important;
             border: 2px solid var(--fv-border) !important;
             border-radius: 0.375rem !important;
             box-shadow: var(--fv-card-shadow) !important;
             transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
           }
           section.main [data-baseweb="base-input"]:focus-within {
-            background-color: #ecfdf5 !important;
+            background-color: #ffffff !important;
+            background: #ffffff !important;
             border-color: var(--fv-accent) !important;
             box-shadow: var(--fv-card-shadow), 0 0 0 3px rgba(5, 150, 105, 0.25) !important;
           }
@@ -1076,6 +1136,7 @@ def _inject_emerald_theme() -> None:
             caret-color: var(--fv-heading) !important;
             border: none !important;
             border-radius: 0 !important;
+            font-size: 1.0625rem !important;
           }
           section.main [data-baseweb="base-input"] input::placeholder {
             color: var(--fv-muted) !important;
@@ -1088,32 +1149,97 @@ def _inject_emerald_theme() -> None:
             color: var(--fv-heading) !important;
           }
           section.main [data-baseweb="base-input"] button {
-            background: transparent !important;
-            color: var(--fv-heading) !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #1a1a1a !important;
+            -webkit-text-fill-color: #1a1a1a !important;
+            border: 1px solid #d1d5db !important;
           }
-          /* Segmented control — elderly-friendly: inactive white/#404040, active #1A1A1A/#FFF, 2px border */
+          /* ZIP / currency fields: full widget chrome white (Base Web + steppers) */
+          section.main [data-testid="stTextInput"],
+          section.main [data-testid="stTextInput"] > div {
+            background: transparent !important;
+            background-color: transparent !important;
+          }
+          section.main [data-testid="stTextInput"] [data-baseweb="base-input"] {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            border: 2px solid #d1d5db !important;
+          }
+          section.main [data-testid="stNumberInput"],
+          section.main [data-testid="stNumberInput"] > div {
+            background: transparent !important;
+            background-color: transparent !important;
+          }
+          section.main [data-testid="stNumberInput"] [data-baseweb="base-input"] {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            border: 2px solid #d1d5db !important;
+          }
+          section.main [data-testid="stNumberInput"] [data-baseweb="base-input"] > div {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+          }
+          section.main [data-testid="stNumberInput"] button {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #1a1a1a !important;
+            -webkit-text-fill-color: #1a1a1a !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+          }
+          section.main [data-testid="stNumberInput"] button:hover {
+            background: #f3f3f0 !important;
+            background-color: #f3f3f0 !important;
+          }
+          section.main [data-testid="stNumberInput"] svg {
+            fill: #1a1a1a !important;
+            color: #1a1a1a !important;
+          }
+          /* Segmented inactive: white surface (theme primary/red must not fill unselected chips) */
+          section.main [data-testid="stSegmentedControl"] button[kind="primary"]:not([aria-checked="true"]),
+          section.main [data-testid="stSegmentedControl"] button[kind="secondary"]:not([aria-checked="true"]),
+          section.main [data-baseweb="button-group"] button[kind="primary"]:not([aria-checked="true"]),
+          section.main [data-baseweb="button-group"] button[kind="secondary"]:not([aria-checked="true"]) {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-testid="stSegmentedControl"] .stMarkdownColoredText,
+          section.main [data-baseweb="button-group"] .stMarkdownColoredText {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-testid="stSegmentedControl"] button[aria-checked="true"] .stMarkdownColoredText,
+          section.main [data-testid="stSegmentedControl"] button[aria-selected="true"] .stMarkdownColoredText,
+          section.main [data-baseweb="button-group"] button[aria-checked="true"] .stMarkdownColoredText {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
+          /* Segmented: inactive white + dark type; active #1A1A1A + white type */
           section.main button[kind="segmented_control"],
           section.main button[kind="segmented_controlActive"],
           section.main button[data-testid^="stBaseButton-segmented_control"] {
             border-radius: 0.375rem !important;
             box-shadow: none !important;
             font-family: inherit !important;
-            min-height: 5rem !important;
+            min-height: 4rem !important;
             padding: 0.55rem 0.9rem !important;
-            font-size: 1.25rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.35 !important;
             font-weight: 700 !important;
             white-space: normal !important;
             text-align: center !important;
-            border: 2px solid #1a1a1a !important;
             outline: none !important;
           }
           section.main button[kind="segmented_control"],
           section.main button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) {
             background-color: #ffffff !important;
             background: #ffffff !important;
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            border: 2px solid #d1d5db !important;
             transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease !important;
           }
           section.main button[kind="segmented_control"]:hover:not(:disabled),
@@ -1125,8 +1251,8 @@ def _inject_emerald_theme() -> None:
               :disabled
             ) {
             background-color: #f3f3f0 !important;
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_controlActive"],
           section.main button[data-testid*="segmented_controlActive"] {
@@ -1134,6 +1260,7 @@ def _inject_emerald_theme() -> None:
             background: #1a1a1a !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
+            border: 2px solid #1a1a1a !important;
           }
           section.main button[kind="segmented_controlActive"] *,
           section.main button[data-testid*="segmented_controlActive"] *,
@@ -1157,22 +1284,27 @@ def _inject_emerald_theme() -> None:
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) span,
           section.main
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) strong {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_control"] a,
+          section.main button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) a {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            text-decoration: none !important;
+          }
           section.main button[kind="segmented_controlActive"] a,
-          section.main button[data-testid^="stBaseButton-segmented_control"] a {
-            color: inherit !important;
-            -webkit-text-fill-color: inherit !important;
+          section.main button[data-testid*="segmented_controlActive"] a {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
             text-decoration: none !important;
           }
           section.main button[kind="segmented_control"] .stMarkdownColoredText,
           section.main
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"])
             .stMarkdownColoredText {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_controlActive"] .stMarkdownColoredText,
           section.main button[data-testid*="segmented_controlActive"] .stMarkdownColoredText {
@@ -1184,6 +1316,7 @@ def _inject_emerald_theme() -> None:
           section.main button[data-testid*="segmented_controlActive"]:hover:not(:disabled),
           section.main button[data-testid*="segmented_controlActive"]:focus-visible:not(:disabled) {
             background-color: #333333 !important;
+            background: #333333 !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
             border-color: #1a1a1a !important;
@@ -1200,7 +1333,7 @@ def _inject_emerald_theme() -> None:
             border-radius: 0.375rem !important;
             box-shadow: var(--fv-card-shadow) !important;
             color: var(--fv-heading) !important;
-            font-size: 1.08rem !important;
+            font-size: 1.0625rem !important;
           }
           /* Secondary buttons — same high-contrast treatment as primary */
           .stButton > button[kind="secondary"] {
@@ -1255,7 +1388,7 @@ def _inject_emerald_theme() -> None:
             font-family: "Source Serif 4", Georgia, serif !important;
             min-height: 2.85rem !important;
             padding: 0.45rem 0.85rem !important;
-            font-size: 1.02rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.35 !important;
             border: none !important;
           }
@@ -1334,6 +1467,7 @@ def _inject_emerald_theme() -> None:
           section.main [data-testid="stRadio"] span {
             color: var(--fv-heading) !important;
             -webkit-text-fill-color: var(--fv-heading) !important;
+            font-size: 1.0625rem !important;
           }
           section.main [data-baseweb="radio"] {
             background: transparent !important;
@@ -1469,15 +1603,15 @@ def _inject_onboarding_stage_css() -> None:
             border-radius: 0.5rem !important;
             border: none !important;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
-            font-size: 1.5rem;
-            line-height: 1.8;
+            font-size: 1.125rem;
+            line-height: 1.65;
             font-family: "Source Serif 4", Georgia, serif !important;
             color: #1a1a1a !important;
             -webkit-font-smoothing: antialiased;
           }
           section.main .block-container h1 {
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: clamp(2.5rem, 4vw, 3.5rem) !important;
+            font-size: clamp(2rem, 3.5vw, 2.75rem) !important;
             font-weight: 600 !important;
             color: #1a1a1a !important;
             letter-spacing: -0.04em !important;
@@ -1512,15 +1646,20 @@ def _inject_onboarding_stage_css() -> None:
             letter-spacing: -0.03em !important;
           }
           section.main .block-container [data-testid="stMarkdownContainer"] p {
-            font-size: 1.5rem !important;
-            line-height: 1.8 !important;
+            font-size: 1.125rem !important;
+            line-height: 1.65 !important;
             color: #1a1a1a !important;
             margin-bottom: 1rem !important;
+          }
+          section.main .block-container [data-testid="stMarkdownContainer"] li {
+            font-size: 1.125rem !important;
+            line-height: 1.65 !important;
+            color: #1a1a1a !important;
           }
           section.main .block-container [data-testid="stWidgetLabel"] p,
           section.main .block-container label[data-testid="stWidgetLabel"] p,
           section.main .block-container .stSlider label p {
-            font-size: 1.3rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.45 !important;
             color: #1a1a1a !important;
           }
@@ -1585,7 +1724,7 @@ def _inject_onboarding_stage_css() -> None:
             [data-baseweb="slider"]
             div:has(> div[role="slider"])
             > div:not([role="slider"]) {
-            font-size: clamp(1.125rem, 2.8vw, 1.375rem) !important;
+            font-size: clamp(1rem, 2.2vw, 1.125rem) !important;
             font-weight: 600 !important;
             color: var(--fv-slider-fill) !important;
             -webkit-text-fill-color: var(--fv-slider-fill) !important;
@@ -1594,7 +1733,7 @@ def _inject_onboarding_stage_css() -> None:
             background-color: transparent !important;
           }
           section.main .block-container div[data-baseweb="select"] > div {
-            font-size: 1.08rem !important;
+            font-size: 1.0625rem !important;
             min-height: 48px !important;
             border-radius: 0.375rem !important;
             border: 1px solid #d1d5db !important;
@@ -1603,7 +1742,7 @@ def _inject_onboarding_stage_css() -> None:
           section.main .block-container .stButton > button[kind="primary"] {
             min-height: 3.2rem !important;
             padding: 0.82rem 1.9rem !important;
-            font-size: 1rem !important;
+            font-size: 1.0625rem !important;
             font-weight: 600 !important;
             border-radius: 0.375rem !important;
             background: #1a1a1a !important;
@@ -1633,6 +1772,12 @@ def _inject_onboarding_stage_css() -> None:
           section.main .block-container .stButton > button[kind="primary"]:focus-visible {
             outline: 3px solid #1a1a1a !important;
             outline-offset: 2px !important;
+          }
+          section.main .block-container .stButton > button[kind="primary"] *,
+          section.main .block-container .stButton > button[kind="primary"]:hover *,
+          section.main .block-container .stButton > button[kind="primary"]:active * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
           }
           div[data-testid="stProgress"] > div {
             height: 6px !important;
@@ -1759,6 +1904,7 @@ def _init_session_state() -> None:
         "dash_housing_model_own_monthly": 0.0,
         "dash_housing_ui_subtab": "rent",
         "dash_housing_committed_subtab": "rent",
+        "dash_own_baseline_mode": OWN_BASELINE_MODE_ACS,
         "dash_own_median_confirm": _wiz_snap.OWN_MEDIAN_CONFIRM_YES,
         "dash_own_home_price": 450_000,
         "dash_own_rate_pct": 6.5,
@@ -1814,6 +1960,15 @@ def _init_session_state() -> None:
     for _hk in ("dash_housing_ui_subtab", "dash_housing_committed_subtab"):
         if st.session_state.get(_hk) not in ("rent", "own"):
             st.session_state[_hk] = str(st.session_state.get("dash_housing_worksheet_side", "rent") or "rent").lower()
+
+    _obm = st.session_state.get("dash_own_baseline_mode")
+    if _obm not in (OWN_BASELINE_MODE_ACS, OWN_BASELINE_MODE_CALC):
+        st.session_state.dash_own_baseline_mode = (
+            OWN_BASELINE_MODE_CALC if st.session_state.get("dash_own_mortgage_step") else OWN_BASELINE_MODE_ACS
+        )
+    st.session_state.dash_own_mortgage_step = (
+        st.session_state.get("dash_own_baseline_mode") == OWN_BASELINE_MODE_CALC
+    )
 
     mc = st.session_state.get("dash_own_median_confirm")
     if isinstance(mc, str) and mc.strip().startswith("Close enough"):
@@ -1873,6 +2028,8 @@ def _apply_disk_user_input_cache() -> None:
                 v = _wiz_snap.OWN_MEDIAN_CONFIRM_YES
             elif v not in (_wiz_snap.OWN_MEDIAN_CONFIRM_YES, _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE):
                 continue
+        if k == "dash_own_baseline_mode" and v not in (OWN_BASELINE_MODE_ACS, OWN_BASELINE_MODE_CALC):
+            continue
         if k in ("llm_model", "llm_base_url"):
             v = str(v) if v is not None else ""
         if k in (
@@ -1909,16 +2066,30 @@ def _apply_disk_user_input_cache() -> None:
 
 
 def _append_jsonl(record: dict) -> None:
+    """Append onboarding capture to JSONL; no-op on read-only FS or permission errors."""
     line = json.dumps(record, ensure_ascii=False)
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with CONFIG_PATH.open("a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    try:
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with CONFIG_PATH.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        # PermissionError, read-only FS, etc.
+        pass
 
 
 def _progress_bar() -> None:
     step = int(st.session_state.onboarding_step)
     pct = min(max(step / float(TOTAL_ONBOARD_STEPS), 0.0), 1.0)
     st.progress(pct, text=None)
+
+
+def _render_cloud_mode_chrome() -> None:
+    """Visible when disk JSON cache is disabled (public / read-only hosting)."""
+    if _wiz_snap.disk_cache_enabled():
+        return
+    st.info(_i18n.t("cloud_mode_banner"), icon="☁️")
+    with st.sidebar:
+        st.caption("☁️ " + _i18n.t("cloud_mode_sidebar_badge"))
 
 
 def _inject_wizard_css() -> None:
@@ -1945,7 +2116,7 @@ def _inject_wizard_css() -> None:
             font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
             -webkit-font-smoothing: antialiased;
             color: #1a1a1a !important;
-            font-size: 1.25rem !important;
+            font-size: 1.0625rem !important;
             padding-top: 1.5rem !important;
             padding-bottom: 2rem !important;
           }
@@ -1968,7 +2139,7 @@ def _inject_wizard_css() -> None:
           }
           .wiz-title {
             font-family: "Playfair Display", Georgia, serif;
-            font-size: clamp(2.5rem, 2.8vw, 3rem);
+            font-size: clamp(1.85rem, 2.5vw, 2.35rem);
             font-weight: 600;
             color: #1a1a1a;
             margin: 0 0 1rem 0;
@@ -1977,8 +2148,8 @@ def _inject_wizard_css() -> None:
           }
           .wiz-instructions {
             color: #4b5563;
-            font-size: 1.25rem;
-            line-height: 1.75;
+            font-size: 1.0625rem;
+            line-height: 1.65;
             margin: 0 0 1.75rem 0;
           }
           .wiz-nav-label {
@@ -2003,7 +2174,7 @@ def _inject_wizard_css() -> None:
             min-height: 3.05rem !important;
             padding: 0.75rem 1.05rem !important;
             border-radius: 0 !important;
-            font-size: 1.05rem !important;
+            font-size: 1.0625rem !important;
             justify-content: flex-start !important;
             text-align: left !important;
             font-family: "Source Serif 4", Georgia, serif !important;
@@ -2048,6 +2219,13 @@ def _inject_wizard_css() -> None:
             transform: translateY(1px) !important;
             box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.12) !important;
           }
+          section.main div[data-testid="stVerticalBlock"]:has(p.wiz-nav-label) .stButton > button[kind="primary"] *,
+          section.main div[data-testid="stVerticalBlock"]:has(p.wiz-nav-label) .stButton > button[kind="secondary"] *,
+          section.main div[data-testid="column"]:has(p.wiz-nav-label) .stButton > button[kind="primary"] *,
+          section.main div[data-testid="column"]:has(p.wiz-nav-label) .stButton > button[kind="secondary"] * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
           div[data-testid="stVerticalBlock"] > div.wiz-footer-bar {
             margin-top: 2.25rem;
             padding-top: 1.5rem;
@@ -2060,7 +2238,7 @@ def _inject_wizard_css() -> None:
             -webkit-text-fill-color: #ffffff !important;
             border-radius: 0.375rem !important;
             font-weight: 600 !important;
-            font-size: 1rem !important;
+            font-size: 1.0625rem !important;
             letter-spacing: 0.08em !important;
             text-transform: uppercase !important;
             font-family: "JetBrains Mono", ui-monospace, monospace !important;
@@ -2081,6 +2259,12 @@ def _inject_wizard_css() -> None:
             -webkit-text-fill-color: #ffffff !important;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
           }
+          section.main .block-container .stButton > button[kind="primary"] *,
+          section.main .block-container .stButton > button[kind="primary"]:hover *,
+          section.main .block-container .stButton > button[kind="primary"]:active * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
           div[data-testid="stVerticalBlockBorderWrapper"] {
             background: #ffffff !important;
             border-radius: 0.375rem !important;
@@ -2089,7 +2273,7 @@ def _inject_wizard_css() -> None:
             padding: 0.55rem 0.75rem !important;
           }
           section.main [data-testid="stMetricLabel"] {
-            font-size: 1.05rem !important;
+            font-size: 1rem !important;
             letter-spacing: 0.02em !important;
           }
           section.main [data-testid="stMetricLabel"],
@@ -2097,7 +2281,7 @@ def _inject_wizard_css() -> None:
             color: #1a1a1a !important;
           }
           section.main div[data-testid="stMetricValue"] {
-            font-size: 1.65rem !important;
+            font-size: 1.3125rem !important;
             font-family: "JetBrains Mono", ui-monospace, monospace !important;
             font-weight: 600 !important;
             color: #059669 !important;
@@ -2125,38 +2309,67 @@ def _inject_wizard_css() -> None:
             border-radius: 0.375rem !important;
             padding: 4px !important;
             gap: 4px !important;
-            border: 2px solid #1a1a1a !important;
+            border: 2px solid #d1d5db !important;
             box-shadow: none !important;
           }
           section.main [data-baseweb="button-group"] button {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
             background: #ffffff !important;
             border-radius: 0.25rem !important;
             font-weight: 700 !important;
-            font-size: 1.25rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.35 !important;
-            min-height: 5rem !important;
+            min-height: 4rem !important;
             padding: 0.5rem 0.75rem !important;
-            border: 2px solid #1a1a1a !important;
+            border: 2px solid #d1d5db !important;
+            background-image: none !important;
           }
           section.main [data-baseweb="button-group"] button * {
-            color: inherit !important;
-            -webkit-text-fill-color: inherit !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main [data-baseweb="button-group"] button:hover {
             background: #f3f3f0 !important;
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main [data-baseweb="button-group"] button[kind="segmented_control_active"],
           section.main [data-baseweb="button-group"] button[aria-checked="true"] {
             background: #1a1a1a !important;
+            background-color: #1a1a1a !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
             border: 2px solid #1a1a1a !important;
             font-weight: 700 !important;
             box-shadow: none !important;
+          }
+          section.main [data-baseweb="button-group"] button[kind="segmented_control_active"]:hover,
+          section.main [data-baseweb="button-group"] button[aria-checked="true"]:hover {
+            background: #333333 !important;
+            background-color: #333333 !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border-color: #1a1a1a !important;
+          }
+          section.main [data-baseweb="button-group"] button[kind="primary"]:not([aria-checked="true"]),
+          section.main [data-baseweb="button-group"] button[kind="secondary"]:not([aria-checked="true"]) {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-baseweb="button-group"] .stMarkdownColoredText {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-baseweb="button-group"] button[aria-checked="true"] .stMarkdownColoredText {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
+          section.main [data-baseweb="button-group"] button[aria-checked="true"] * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
           }
           /* Repeat Base Web + segmented overrides after wizard rules (loaded later than global theme). */
           section.main [data-baseweb="base-input"] {
@@ -2185,6 +2398,7 @@ def _inject_wizard_css() -> None:
             color: #1a1a1a !important;
             -webkit-text-fill-color: #1a1a1a !important;
             border: none !important;
+            font-size: 1.0625rem !important;
           }
           section.main [data-baseweb="base-input"] input::placeholder {
             color: #4b5563 !important;
@@ -2195,29 +2409,92 @@ def _inject_wizard_css() -> None:
             fill: #1a1a1a !important;
             color: #1a1a1a !important;
           }
-          /* Segmented control — same high-contrast rules as global theme (wizard loads later) */
+          section.main [data-baseweb="base-input"] button {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #1a1a1a !important;
+            -webkit-text-fill-color: #1a1a1a !important;
+            border: 1px solid #d1d5db !important;
+          }
+          section.main [data-testid="stTextInput"],
+          section.main [data-testid="stTextInput"] > div {
+            background: transparent !important;
+            background-color: transparent !important;
+          }
+          section.main [data-testid="stTextInput"] [data-baseweb="base-input"] {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            border: 2px solid #d1d5db !important;
+          }
+          section.main [data-testid="stNumberInput"],
+          section.main [data-testid="stNumberInput"] > div {
+            background: transparent !important;
+            background-color: transparent !important;
+          }
+          section.main [data-testid="stNumberInput"] [data-baseweb="base-input"] {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            border: 2px solid #d1d5db !important;
+          }
+          section.main [data-testid="stNumberInput"] [data-baseweb="base-input"] > div {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+          }
+          section.main [data-testid="stNumberInput"] button {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #1a1a1a !important;
+            -webkit-text-fill-color: #1a1a1a !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+          }
+          section.main [data-testid="stNumberInput"] button:hover {
+            background: #f3f3f0 !important;
+            background-color: #f3f3f0 !important;
+          }
+          section.main [data-testid="stNumberInput"] svg {
+            fill: #1a1a1a !important;
+            color: #1a1a1a !important;
+          }
+          section.main [data-testid="stSegmentedControl"] button[kind="primary"]:not([aria-checked="true"]),
+          section.main [data-testid="stSegmentedControl"] button[kind="secondary"]:not([aria-checked="true"]) {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-testid="stSegmentedControl"] .stMarkdownColoredText {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main [data-testid="stSegmentedControl"] button[aria-checked="true"] .stMarkdownColoredText,
+          section.main [data-testid="stSegmentedControl"] button[aria-selected="true"] .stMarkdownColoredText {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+          }
+          /* Segmented — wizard pass: inactive white/black; active #1A1A1A + white */
           section.main button[kind="segmented_control"],
           section.main button[kind="segmented_controlActive"],
           section.main button[data-testid^="stBaseButton-segmented_control"] {
             border-radius: 0.375rem !important;
             box-shadow: none !important;
             font-family: inherit !important;
-            min-height: 5rem !important;
+            min-height: 4rem !important;
             padding: 0.55rem 0.9rem !important;
-            font-size: 1.25rem !important;
+            font-size: 1.0625rem !important;
             line-height: 1.35 !important;
             font-weight: 700 !important;
             white-space: normal !important;
             text-align: center !important;
-            border: 2px solid #1a1a1a !important;
             outline: none !important;
           }
           section.main button[kind="segmented_control"],
           section.main button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) {
             background-color: #ffffff !important;
             background: #ffffff !important;
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            border: 2px solid #d1d5db !important;
             transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease !important;
           }
           section.main button[kind="segmented_control"]:hover:not(:disabled),
@@ -2229,8 +2506,8 @@ def _inject_wizard_css() -> None:
               :disabled
             ) {
             background-color: #f3f3f0 !important;
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_controlActive"],
           section.main button[data-testid*="segmented_controlActive"] {
@@ -2238,6 +2515,7 @@ def _inject_wizard_css() -> None:
             background: #1a1a1a !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
+            border: 2px solid #1a1a1a !important;
           }
           section.main button[kind="segmented_controlActive"] *,
           section.main button[data-testid*="segmented_controlActive"] *,
@@ -2261,22 +2539,27 @@ def _inject_wizard_css() -> None:
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) span,
           section.main
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) strong {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_control"] a,
+          section.main button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"]) a {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            text-decoration: none !important;
+          }
           section.main button[kind="segmented_controlActive"] a,
-          section.main button[data-testid^="stBaseButton-segmented_control"] a {
-            color: inherit !important;
-            -webkit-text-fill-color: inherit !important;
+          section.main button[data-testid*="segmented_controlActive"] a {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
             text-decoration: none !important;
           }
           section.main button[kind="segmented_control"] .stMarkdownColoredText,
           section.main
             button[data-testid^="stBaseButton-segmented_control"]:not([data-testid*="Active"])
             .stMarkdownColoredText {
-            color: #404040 !important;
-            -webkit-text-fill-color: #404040 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
           }
           section.main button[kind="segmented_controlActive"] .stMarkdownColoredText,
           section.main button[data-testid*="segmented_controlActive"] .stMarkdownColoredText {
@@ -2288,6 +2571,7 @@ def _inject_wizard_css() -> None:
           section.main button[data-testid*="segmented_controlActive"]:hover:not(:disabled),
           section.main button[data-testid*="segmented_controlActive"]:focus-visible:not(:disabled) {
             background-color: #333333 !important;
+            background: #333333 !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
             border-color: #1a1a1a !important;
@@ -2297,6 +2581,122 @@ def _inject_wizard_css() -> None:
           section.main button[data-testid^="stBaseButton-segmented_control"]:focus-visible {
             outline: 3px solid #1a1a1a !important;
             outline-offset: 2px !important;
+          }
+          /* Housing step only: no white type — force black copy and light buttons (scoped via st.container key). */
+          section.main .st-key-wiz_main_housing,
+          section.main .st-key-wiz_main_housing .wiz-step-meta,
+          section.main .st-key-wiz_main_housing .wiz-title,
+          section.main .st-key-wiz_main_housing .wiz-instructions,
+          section.main .st-key-wiz_main_housing [data-testid="stMarkdownContainer"],
+          section.main .st-key-wiz_main_housing [data-testid="stMarkdownContainer"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-testid="stCaptionContainer"],
+          section.main .st-key-wiz_main_housing [data-testid="stCaptionContainer"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-testid="stWidgetLabel"],
+          section.main .st-key-wiz_main_housing [data-testid="stWidgetLabel"] *,
+          section.main .st-key-wiz_main_housing label[data-testid="stWidgetLabel"],
+          section.main .st-key-wiz_main_housing label[data-testid="stWidgetLabel"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stMarkdownColoredText {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-testid="stRadio"],
+          section.main .st-key-wiz_main_housing [data-testid="stRadio"] *,
+          section.main .st-key-wiz_main_housing [data-testid="stRadioGroup"],
+          section.main .st-key-wiz_main_housing [data-testid="stRadioGroup"] *,
+          section.main .st-key-wiz_main_housing [data-testid="stRadio"] [role="radiogroup"],
+          section.main .st-key-wiz_main_housing [data-testid="stRadio"] [role="radiogroup"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-testid="stMetricLabel"],
+          section.main .st-key-wiz_main_housing [data-testid="stMetricValue"],
+          section.main .st-key-wiz_main_housing [data-testid="stMetricDelta"],
+          section.main .st-key-wiz_main_housing [data-testid="stMetricLabel"] *,
+          section.main .st-key-wiz_main_housing [data-testid="stMetricValue"] *,
+          section.main .st-key-wiz_main_housing [data-testid="stMetricDelta"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing div[data-testid="stAlert"] p,
+          section.main .st-key-wiz_main_housing div[data-testid="stAlert"] div,
+          section.main .st-key-wiz_main_housing div[data-testid="stAlert"] span,
+          section.main .st-key-wiz_main_housing div[data-testid="stAlert"] li {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-baseweb="radio"],
+          section.main .st-key-wiz_main_housing [data-baseweb="radio"] * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-baseweb="select"] > div,
+          section.main .st-key-wiz_main_housing [data-baseweb="select"] span {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stTextInput input,
+          section.main .st-key-wiz_main_housing .stNumberInput input,
+          section.main .st-key-wiz_main_housing textarea {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-baseweb="base-input"] input {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stButton > button[kind="primary"],
+          section.main .st-key-wiz_main_housing .stButton > button[kind="secondary"],
+          section.main .st-key-wiz_main_housing .stDownloadButton > button {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            border: 2px solid #000000 !important;
+            box-shadow: none !important;
+          }
+          section.main .st-key-wiz_main_housing .stButton > button[kind="primary"]:hover:not(:disabled),
+          section.main .st-key-wiz_main_housing .stButton > button[kind="secondary"]:hover:not(:disabled),
+          section.main .st-key-wiz_main_housing .stDownloadButton > button:hover:not(:disabled) {
+            background: #f3f3f0 !important;
+            background-color: #f3f3f0 !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stButton > button * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stDownloadButton > button * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stButton > button[kind="primary"]:active:not(:disabled),
+          section.main .st-key-wiz_main_housing .stButton > button[kind="secondary"]:active:not(:disabled),
+          section.main .st-key-wiz_main_housing .stDownloadButton > button:active:not(:disabled) {
+            background: #dededc !important;
+            background-color: #dededc !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            border-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing .stButton > button:active:not(:disabled) *,
+          section.main .st-key-wiz_main_housing .stDownloadButton > button:active:not(:disabled) * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          section.main .st-key-wiz_main_housing [data-testid="stNumberInput"] svg,
+          section.main .st-key-wiz_main_housing [data-testid="stNumberInput"] svg * {
+            fill: #000000 !important;
+            color: #000000 !important;
           }
           @media (max-width: 768px) {
             section.main [data-testid="stHorizontalBlock"] {
@@ -2836,8 +3236,31 @@ def _render_wizard_entertainment_panel(income: float, vibe: str, family: str) ->
     _render_wizard_step_tracker("entertainment")
 
 
+def _housing_segmented_control(
+    label: str,
+    *,
+    options: list[str],
+    format_func,
+    sc_key: str,
+    help: str | None = None,
+) -> None:
+    """Full-width segmented control; omits ``width=`` on Streamlit builds that predate ``width``."""
+    common: dict = {
+        "options": options,
+        "format_func": format_func,
+        "key": sc_key,
+        "label_visibility": "visible",
+    }
+    if help is not None:
+        common["help"] = help
+    try:
+        st.segmented_control(label, width="stretch", **common)
+    except TypeError:
+        st.segmented_control(label, **common)
+
+
 def _render_wizard_housing_panel(family: str) -> None:
-    """Two sub-pages: Rent (ZIP + family band vs ACS gross rent) and Own (ZIP vs owner cost)."""
+    """ZIP → rent vs own → rent worksheet, or own (ACS median vs mortgage calculator). Same math keys as before."""
     st.session_state.pop("_wf_car_pool_usd", None)
     st.session_state.pop("_wf_car_pool_meta", None)
     st.session_state.pop("_wf_pool_after_child_usd", None)
@@ -2868,6 +3291,7 @@ def _render_wizard_housing_panel(family: str) -> None:
             detail=prof_detail,
         )
     )
+    st.markdown(_i18n.t("house_flow_intro"))
     zip_combined = st.text_input(
         _i18n.t("house_zip_label"),
         placeholder=_i18n.t("house_zip_ph"),
@@ -2888,30 +3312,20 @@ def _render_wizard_housing_panel(family: str) -> None:
         st.session_state.dash_housing_benchmark_rent_mo = 0.0
         st.session_state.dash_housing_benchmark_owner_mo = 0.0
 
-    # Implementer notes (not shown in UI): ZIP is shared by Rent/Own. When rent and owned
-    # all-in are both still $0, worksheet & pie take housing from the first control’s side.
-    # The second control is which worksheet is binding (Rent vs Own); it’s persisted on Next
-    # and drives tracker, pie, and exports.
-    st.segmented_control(
-        _i18n.t("house_ws_side_lbl"),
-        options=["rent", "own"],
-        format_func=_fmt_housing_ws_side,
-        key="dash_housing_worksheet_side",
-        help=_i18n.t("house_ws_side_help"),
-        label_visibility="visible",
-        width="stretch",
-    )
-
-    st.segmented_control(
-        _i18n.t("house_binding_lbl"),
+    _housing_segmented_control(
+        _i18n.t("house_living_situation_lbl"),
         options=["rent", "own"],
         format_func=_fmt_housing_ui_tab,
-        key="dash_housing_ui_subtab",
-        label_visibility="visible",
-        width="stretch",
+        sc_key="dash_housing_ui_subtab",
+        help=_i18n.t("house_living_situation_help"),
     )
+    ui_tab = str(st.session_state.get("dash_housing_ui_subtab", "rent") or "rent").lower()
+    if ui_tab not in ("rent", "own"):
+        ui_tab = "rent"
+        st.session_state.dash_housing_ui_subtab = ui_tab
+    st.session_state.dash_housing_worksheet_side = ui_tab
 
-    if str(st.session_state.get("dash_housing_ui_subtab", "rent") or "rent").lower() == "rent":
+    if ui_tab == "rent":
         st.markdown("##### " + _i18n.t("house_renting_title"))
         st.caption(_i18n.t("house_renting_caption"))
 
@@ -2931,6 +3345,11 @@ def _render_wizard_housing_panel(family: str) -> None:
                 st.warning(_i18n.t("house_warn_no_rent"))
         else:
             st.info(_i18n.t("house_info_zip"))
+
+        if bench_r is not None and z5 and median_r:
+            if st.button(_i18n.t("house_btn_fill_zip_rent"), key="house_fill_rent_from_bench"):
+                st.session_state.dash_rent = int(bench_r)
+                st.rerun()
 
         st.number_input(
             _i18n.t("house_your_rent"),
@@ -2956,75 +3375,88 @@ def _render_wizard_housing_panel(family: str) -> None:
         beds = _family_suggested_bedrooms(family)
         st.caption(_i18n.t("house_own_beds_caption", beds=beds))
 
-        if not st.session_state.dash_own_mortgage_step:
-            st.markdown("###### " + _i18n.t("house_own_step1"))
-            if not z5:
-                st.info(_i18n.t("house_own_zip_info"))
-            else:
-                if name_z:
-                    st.markdown(_i18n.t("house_census_lbl", name=name_z))
-                st.markdown(
-                    _i18n.t("house_band_mult", short=prof_short, mult=mult),
-                )
-                if bench_o and oc_med:
-                    st.metric(
-                        _i18n.t("house_own_cost_metric"),
-                        f"${bench_o:,}/mo",
-                        help=_i18n.t(
-                            "house_own_cost_help",
-                            yr=ACS_YEAR,
-                            med=int(oc_med),
-                            mult=mult,
-                        ),
-                    )
-                else:
-                    st.warning(_i18n.t("house_warn_no_b25105"))
-                if bench_home and hv_med:
-                    st.metric(
-                        _i18n.t("house_home_val_metric"),
-                        f"${bench_home:,}",
-                        help=_i18n.t(
-                            "house_home_val_help",
-                            yr=ACS_YEAR,
-                            med=int(hv_med),
-                            mult=mult,
-                        ),
-                    )
-                else:
-                    st.info(_i18n.t("house_info_no_b25077"))
-
-            st.radio(
-                _i18n.t("house_median_confirm_lbl"),
-                [
-                    _wiz_snap.OWN_MEDIAN_CONFIRM_YES,
-                    _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE,
-                ],
-                key="dash_own_median_confirm",
-                format_func=_fmt_own_median_choice,
-            )
-            if st.session_state.get("dash_own_median_confirm") == _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE:
-                with st.container(border=True):
-                    st.markdown(_i18n.t("house_unsure_title"))
-                    st.markdown(_i18n.t("house_unsure_body"))
-            if st.button(_i18n.t("house_btn_verify"), type="primary", key="dash_own_verify"):
-                st.session_state.dash_own_mortgage_step = True
-                st.session_state.dash_housing_worksheet_side = "own"
-                st.session_state.dash_housing_ui_subtab = "own"
-                st.session_state.dash_housing_committed_subtab = "own"
-                if st.session_state.get("dash_own_median_confirm") == _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE:
-                    st.session_state.dash_own_came_from_unsure = True
-                else:
-                    st.session_state.dash_own_came_from_unsure = False
-                if bench_home:
-                    st.session_state.dash_own_home_price = bench_home
-                elif "dash_own_home_price" not in st.session_state:
-                    st.session_state.dash_own_home_price = 450_000
-                dr = _fred_latest_mortgage30_annual_pct()
-                if dr is not None:
-                    st.session_state.dash_own_rate_pct = round(float(dr), 3)
-                st.rerun()
-
+        if not z5:
+            st.info(_i18n.t("house_own_zip_info"))
         else:
+            if name_z:
+                st.markdown(_i18n.t("house_census_lbl", name=name_z))
+            st.markdown(
+                _i18n.t("house_band_mult", short=prof_short, mult=mult),
+            )
+            if bench_o and oc_med:
+                st.metric(
+                    _i18n.t("house_own_cost_metric"),
+                    f"${bench_o:,}/mo",
+                    help=_i18n.t(
+                        "house_own_cost_help",
+                        yr=ACS_YEAR,
+                        med=int(oc_med),
+                        mult=mult,
+                    ),
+                )
+            else:
+                st.warning(_i18n.t("house_warn_no_b25105"))
+            if bench_home and hv_med:
+                st.metric(
+                    _i18n.t("house_home_val_metric"),
+                    f"${bench_home:,}",
+                    help=_i18n.t(
+                        "house_home_val_help",
+                        yr=ACS_YEAR,
+                        med=int(hv_med),
+                        mult=mult,
+                    ),
+                )
+            else:
+                st.info(_i18n.t("house_info_no_b25077"))
+
+        st.radio(
+            _i18n.t("house_median_confirm_lbl"),
+            [
+                _wiz_snap.OWN_MEDIAN_CONFIRM_YES,
+                _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE,
+            ],
+            key="dash_own_median_confirm",
+            format_func=_fmt_own_median_choice,
+        )
+        if st.session_state.get("dash_own_median_confirm") == _wiz_snap.OWN_MEDIAN_CONFIRM_UNSURE:
+            with st.container(border=True):
+                st.markdown(_i18n.t("house_unsure_title"))
+                st.markdown(_i18n.t("house_unsure_body"))
+
+        st.markdown("###### " + _i18n.t("house_own_baseline_header"))
+        st.caption(_i18n.t("house_own_baseline_subcaption"))
+        st.radio(
+            _i18n.t("house_own_baseline_mode_lbl"),
+            [OWN_BASELINE_MODE_ACS, OWN_BASELINE_MODE_CALC],
+            key="dash_own_baseline_mode",
+            format_func=_fmt_own_baseline_mode,
+        )
+        _sync_own_baseline_from_widgets()
+
+        if st.session_state.get("dash_own_baseline_mode") == OWN_BASELINE_MODE_ACS:
+            st.caption(_i18n.t("house_own_mode_acs_caption"))
+            if "dash_mortgage" not in st.session_state:
+                cm = float(st.session_state.get("dash_mortgage_cached", 0) or 0)
+                if cm > 0:
+                    st.session_state.dash_mortgage = float(cm)
+            st.number_input(
+                _i18n.t("house_own_actual_optional_acs"),
+                min_value=0,
+                step=50,
+                key="dash_mortgage",
+                on_change=_bump_mortgage_edit_flag,
+                help=_i18n.t("house_own_actual_optional_acs_help"),
+            )
+            _sync_dash_mortgage_cache()
+        else:
+            if z5 and bench_home:
+                if st.session_state.get("_housing_own_price_seed_zip") != z5:
+                    st.session_state.dash_own_home_price = int(bench_home)
+                    st.session_state._housing_own_price_seed_zip = z5
+            elif not z5:
+                st.session_state.pop("_housing_own_price_seed_zip", None)
+
             st.markdown("###### " + _i18n.t("house_own_step2"))
             if st.session_state.get("dash_own_came_from_unsure"):
                 st.info(_i18n.t("house_from_unsure_info"))
@@ -3043,9 +3475,11 @@ def _render_wizard_housing_panel(family: str) -> None:
                 st.caption(_i18n.t("house_fred_ok", rate=default_rate))
             else:
                 st.caption(_i18n.t("house_fred_fail", rate=default_rate))
-            if st.button(_i18n.t("house_back_median"), key="dash_own_back_phase"):
+            if st.button(_i18n.t("house_back_estimate"), key="dash_own_back_phase"):
+                st.session_state.dash_own_baseline_mode = OWN_BASELINE_MODE_ACS
                 st.session_state.dash_own_mortgage_step = False
                 st.session_state.dash_housing_model_own_monthly = 0.0
+                st.session_state.pop("_housing_own_price_seed_zip", None)
                 st.rerun()
 
             st.number_input(
@@ -3139,8 +3573,9 @@ def _render_wizard_housing_panel(family: str) -> None:
         )
 
     _wiz_snap.refresh_session_derived_totals(st.session_state)
-    ui_tab = str(st.session_state.get("dash_housing_ui_subtab", "rent") or "rent").lower()
-    st.session_state.dash_housing_committed_subtab = ui_tab if ui_tab in ("rent", "own") else "rent"
+    st.session_state.dash_housing_committed_subtab = (
+        ui_tab if ui_tab in ("rent", "own") else "rent"
+    )
     _sync_dash_mortgage_cache()
     _render_wizard_step_tracker("housing")
 
@@ -3423,87 +3858,90 @@ def _render_wizard_spending_pie() -> None:
         st.dataframe(rows, use_container_width=True, hide_index=True)
         return
 
-    _n_slices = len(lines)
-    _emerald_mono = ["#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"]
-    colors = [_emerald_mono[min(i, len(_emerald_mono) - 1)] for i in range(_n_slices)]
-    legend_handles = [
-        mpatches.Patch(
-            facecolor=colors[i],
-            edgecolor="#1a1a1a",
-            linewidth=0.5,
-            label=f"{_wfl_short_label(i)}: {pct_take_home[i]:.1f}% · ${true_vals[i]:,.0f}/mo",
+    try:
+        _n_slices = len(lines)
+        _emerald_mono = ["#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"]
+        colors = [_emerald_mono[min(i, len(_emerald_mono) - 1)] for i in range(_n_slices)]
+        legend_handles = [
+            mpatches.Patch(
+                facecolor=colors[i],
+                edgecolor="#1a1a1a",
+                linewidth=0.5,
+                label=f"{_wfl_short_label(i)}: {pct_take_home[i]:.1f}% · ${true_vals[i]:,.0f}/mo",
+            )
+            for i in range(len(lines))
+        ]
+        idx = {"i": 0}
+        min_show_pct = 2.0
+
+        def _autopct(_pct_mpl: float) -> str:
+            i = idx["i"]
+            idx["i"] += 1
+            tv = true_vals[i]
+            if tv <= 1e-9:
+                return ""
+            pct_inc = (tv / inc_tr * 100.0) if inc_tr > 1e-6 else 0.0
+            if pct_inc < min_show_pct:
+                return ""
+            return f"{pct_inc:.0f}%\n${tv:,.0f}"
+
+        _chart_bg = "#ffffff"
+        fig, ax = plt.subplots(figsize=(4.15, 4.15), dpi=132)
+        fig.patch.set_facecolor(_chart_bg)
+        ax.set_facecolor(_chart_bg)
+        wedges, _texts, autotexts = ax.pie(
+            true_vals,
+            labels=None,
+            autopct=_autopct,
+            startangle=112,
+            colors=colors,
+            wedgeprops={
+                "width": 0.48,
+                "edgecolor": "#1a1a1a",
+                "linewidth": 0.65,
+                "antialiased": True,
+            },
+            textprops={"fontsize": 11.5, "fontfamily": "serif"},
+            radius=1.0,
+            pctdistance=0.79,
         )
-        for i in range(len(lines))
-    ]
-    idx = {"i": 0}
-    min_show_pct = 2.0
-
-    def _autopct(_pct_mpl: float) -> str:
-        i = idx["i"]
-        idx["i"] += 1
-        tv = true_vals[i]
-        if tv <= 1e-9:
-            return ""
-        pct_inc = (tv / inc_tr * 100.0) if inc_tr > 1e-6 else 0.0
-        if pct_inc < min_show_pct:
-            return ""
-        return f"{pct_inc:.0f}%\n${tv:,.0f}"
-
-    _chart_bg = "#ffffff"
-    fig, ax = plt.subplots(figsize=(4.15, 4.15), dpi=132)
-    fig.patch.set_facecolor(_chart_bg)
-    ax.set_facecolor(_chart_bg)
-    wedges, _texts, autotexts = ax.pie(
-        true_vals,
-        labels=None,
-        autopct=_autopct,
-        startangle=112,
-        colors=colors,
-        wedgeprops={
-            "width": 0.48,
-            "edgecolor": "#1a1a1a",
-            "linewidth": 0.65,
-            "antialiased": True,
-        },
-        textprops={"fontsize": 11.5, "fontfamily": "serif"},
-        radius=1.0,
-        pctdistance=0.79,
-    )
-    ax.axis("equal")
-    for w, at in zip(wedges, autotexts):
-        if not at.get_text().strip():
-            continue
-        rgba = w.get_facecolor()
-        lum = 0.299 * float(rgba[0]) + 0.587 * float(rgba[1]) + 0.114 * float(rgba[2])
-        at.set_color("#ffffff" if lum < 0.45 else "#000000")
-        at.set_fontweight("semibold")
-        at.set_fontsize(7.35)
-    leg = ax.legend(
-        handles=legend_handles,
-        loc="center left",
-        bbox_to_anchor=(1.02, 0.5),
-        fontsize=7.35,
-        frameon=True,
-        fancybox=False,
-        framealpha=1.0,
-        edgecolor="#1a1a1a",
-        facecolor="#ffffff",
-        title=_i18n.t("pie_legend_title"),
-        title_fontsize=7.5,
-        labelspacing=0.55,
-        borderaxespad=0.65,
-    )
-    leg.get_title().set_color("#000000")
-    leg.get_title().set_fontweight("600")
-    ax.set_title(
-        _i18n.t("pie_chart_title", inc=inc_tr),
-        fontsize=10.75,
-        pad=10,
-        color="#000000",
-        fontweight="600",
-    )
-    fig.subplots_adjust(left=0.02, right=0.72, top=0.9, bottom=0.04)
-    st.pyplot(fig, clear_figure=True, use_container_width=False)
+        ax.axis("equal")
+        for w, at in zip(wedges, autotexts):
+            if not at.get_text().strip():
+                continue
+            rgba = w.get_facecolor()
+            lum = 0.299 * float(rgba[0]) + 0.587 * float(rgba[1]) + 0.114 * float(rgba[2])
+            at.set_color("#ffffff" if lum < 0.45 else "#000000")
+            at.set_fontweight("semibold")
+            at.set_fontsize(7.35)
+        leg = ax.legend(
+            handles=legend_handles,
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            fontsize=7.35,
+            frameon=True,
+            fancybox=False,
+            framealpha=1.0,
+            edgecolor="#1a1a1a",
+            facecolor="#ffffff",
+            title=_i18n.t("pie_legend_title"),
+            title_fontsize=7.5,
+            labelspacing=0.55,
+            borderaxespad=0.65,
+        )
+        leg.get_title().set_color("#000000")
+        leg.get_title().set_fontweight("600")
+        ax.set_title(
+            _i18n.t("pie_chart_title", inc=inc_tr),
+            fontsize=10.75,
+            pad=10,
+            color="#000000",
+            fontweight="600",
+        )
+        fig.subplots_adjust(left=0.02, right=0.72, top=0.9, bottom=0.04)
+        st.pyplot(fig, clear_figure=True, use_container_width=False)
+    except Exception:
+        st.warning(_i18n.t("pie_warn_chart_render"))
     st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
@@ -3689,12 +4127,12 @@ def _refresh_wizard_snapshot() -> dict:
         snap,
         waterfall_ledger=wf_ledger,
     )
+    _wiz_snap.persist_snapshot(snap)
     try:
-        _wiz_snap.persist_snapshot(snap)
+        _wiz_snap.persist_user_inputs_to_disk(st.session_state)
+        _wiz_snap.persist_llm_advisor_context(st.session_state)
     except OSError:
         pass
-    _wiz_snap.persist_user_inputs_to_disk(st.session_state)
-    _wiz_snap.persist_llm_advisor_context(st.session_state)
     return snap
 
 
@@ -4018,7 +4456,7 @@ def _render_post_onboarding_dashboard() -> None:
     card_title = _i18n.t(title_key)
     card_instr = _i18n.t(instr_key)
     with main_col:
-        with st.container(border=True):
+        with st.container(border=True, key=f"wiz_main_{_slug}"):
             st.markdown(
                 f'<p class="wiz-step-meta">{_i18n.t("wiz_step_counter", cur=ds + 1, total=N_WIZARD_STEPS)}</p>',
                 unsafe_allow_html=True,
@@ -4079,13 +4517,14 @@ def _render_post_onboarding_dashboard() -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title=f"{APP_TITLE} · Onboarding",
+        page_title="Wise spending",
         page_icon="◆",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
     _init_session_state()
     _inject_emerald_theme()
+    _render_cloud_mode_chrome()
 
     if st.session_state.onboarding_complete:
         _render_post_onboarding_dashboard()

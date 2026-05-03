@@ -26,6 +26,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Tus cifras permanecen en este navegador hasta cerrar la pestaña. Usa **Exportar** para descargar una copia.",
         "zh": "数字保存在本浏览器，关闭标签即清空。需要备份请用 **Export** 下载。",
     },
+    "cloud_mode_banner": {
+        "en": "**Cloud mode:** disk save is off. Your answers exist only in this browser session and will not persist after a full refresh or if you close the tab. Use **Export** on the dashboard to download a copy.",
+        "es": "**Modo nube:** el guardado en disco está desactivado. Tus datos solo viven en esta sesión del navegador y no persisten tras recargar o cerrar la pestaña. Usa **Exportar** en el panel para descargar una copia.",
+        "zh": "**云端模式：** 未启用磁盘保存。内容仅存在于当前浏览器会话，刷新或关闭标签后不会保留。请在仪表板使用 **Export** 下载备份。",
+    },
+    "cloud_mode_sidebar_badge": {
+        "en": "Cloud mode · session only",
+        "es": "Modo nube · solo sesión",
+        "zh": "云端模式 · 仅本会话",
+    },
     "dash_baseline_header": {
         "en": "Your baseline (from the questionnaire)",
         "es": "Tu línea base (del cuestionario)",
@@ -576,6 +586,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Instala **matplotlib** para ver el gráfico: `pip install matplotlib`",
         "zh": "安装 **matplotlib** 后可显示饼图：`pip install matplotlib`",
     },
+    "pie_warn_chart_render": {
+        "en": "Could not render the pie chart; figures are still available in the table below.",
+        "es": "No se pudo dibujar el gráfico circular; las cifras siguen en la tabla de abajo.",
+        "zh": "饼图未能绘制，下方表格中仍有完整数字。",
+    },
     "pie_col_category": {"en": "Category", "es": "Categoría", "zh": "类别"},
     "pie_col_pct_th": {
         "en": "% of take-home",
@@ -979,6 +994,71 @@ STRINGS: dict[str, dict[str, str]] = {
         "zh": "邮编（5 位）",
     },
     "house_zip_ph": {"en": "e.g. 10001", "es": "ej. 10001", "zh": "如 10001"},
+    "house_flow_intro": {
+        "en": "**Three steps:** (1) ZIP → local Census benchmarks · (2) **Rent or own** the home you budget for · (3) **Rent:** type your all-in or start from the ZIP median · **Own:** use a **quick ZIP median** or the **mortgage & bills calculator**, then optionally type your **real all-in** so charts match life.",
+        "es": "**Tres pasos:** (1) ZIP → referencias del censo · (2) **Alquiler u propiedad** · (3) **Alquiler:** tu total o la mediana ZIP · **Propiedad:** **mediana ZIP rápida** o **calculadora de hipoteca y gastos**, y opcionalmente tu **total real**.",
+        "zh": "**三步：** (1) 邮编 → 本地普查基准 · (2) 你按**租**还是**自有**做预算 · (3) **租：**填写月全包或从邮编中位数起步 · **自有：**选 **邮编中位数快估** 或 **按揭与账单计算器**，并可填写**真实月全包**以对齐生活。",
+    },
+    "house_living_situation_lbl": {
+        "en": "For this worksheet, are you **renting** or **owning** the home?",
+        "es": "En esta hoja, ¿**alquilas** o **eres propietario** de la vivienda?",
+        "zh": "本页预算里，你是**租房**还是**自有住房**？",
+    },
+    "house_living_situation_help": {
+        "en": "This single choice drives the rent vs own path, benchmarks, and what feeds the pie — no second toggle.",
+        "es": "Una sola elección: alquiler o propiedad; alimenta referencias y el gráfico.",
+        "zh": "仅此一项决定租房/自有路径与饼图来源，无需第二个开关。",
+    },
+    "house_btn_fill_zip_rent": {
+        "en": "Fill “your monthly total” with the ZIP benchmark above",
+        "es": "Rellenar el total mensual con la referencia ZIP",
+        "zh": "用上方邮编基准填入“月合计”",
+    },
+    "house_own_baseline_header": {
+        "en": "Owner baseline: quick estimate or calculator?",
+        "es": "Propietario: ¿referencia rápida o calculadora?",
+        "zh": "自有住房：快估还是计算器？",
+    },
+    "house_own_baseline_subcaption": {
+        "en": "Pick how we **estimate** your monthly owner cost when you have not typed a full all-in yet. You can always enter **your real all-in** below (quick path) or after the model (calculator path).",
+        "es": "Cómo **estimamos** el coste mensual si aún no escribes un total completo. Siempre puedes poner tu **total real** abajo.",
+        "zh": "在未填写完整“月全包”时，用哪种方式**估算**自有月成本；也可随时在下方填写**真实月全包**（快估路径）或在模型后填写（计算器路径）。",
+    },
+    "house_own_baseline_mode_lbl": {
+        "en": "Baseline source",
+        "es": "Fuente de la referencia",
+        "zh": "基准来源",
+    },
+    "house_own_mode_acs": {
+        "en": "ZIP / Census median owner cost (quick)",
+        "es": "Mediana de coste de propietario ZIP / censo (rápido)",
+        "zh": "邮编业主成本中位数 / 普查（快估）",
+    },
+    "house_own_mode_calc": {
+        "en": "Mortgage & bills calculator (detailed)",
+        "es": "Calculadora hipoteca y gastos (detallada)",
+        "zh": "按揭与账单计算器（细项）",
+    },
+    "house_own_mode_acs_caption": {
+        "en": "Uses **ACS median monthly owner cost** for your ZIP when it matches your expectations — or type **your real all-in** to override.",
+        "es": "Usa la **mediana mensual de propietario** del ZIP si encaja — o escribe tu **total real**.",
+        "zh": "在认可邮编**业主月成本中位数**时使用；若与实际不符，请直接填写**真实月全包**覆盖。",
+    },
+    "house_own_actual_optional_acs": {
+        "en": "Your real monthly all-in — mortgage, taxes, insurance, HOA, utilities ($)",
+        "es": "Tu total mensual real — hipoteca, impuestos, seguro, HOA, servicios ($)",
+        "zh": "真实月全包 — 按揭、税、保险、HOA、水电等（$）",
+    },
+    "house_own_actual_optional_acs_help": {
+        "en": "When **above $0**, this wins over the Census median for totals and the pie.",
+        "es": "Si es **> $0**, manda sobre la mediana del censo.",
+        "zh": "大于 **0** 时优先于普查中位数计入合计与饼图。",
+    },
+    "house_back_estimate": {
+        "en": "← Back to quick ZIP estimate",
+        "es": "← Volver a la referencia ZIP rápida",
+        "zh": "← 返回邮编快估",
+    },
     "house_ws_side_lbl": {
         "en": "If both inputs are blank, estimate from",
         "es": "Si ambos importes siguen en blanco, estimar según",
@@ -1048,9 +1128,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "zh": "工作表与饼图住房 — **租**页 / 月",
     },
     "house_metric_rent_tab_help": {
-        "en": "**Your** rent + utilities when the box is above **$0**; otherwise this follows the **ZIP gross-rent benchmark** on this tab. The **tracker & pie** use this $ only when **Rent** is the binding choice above (not the separate “when both $0” radio).",
-        "es": "Tu alquiler + servicios si la caja > **$0**; si no, sigue la **referencia ZIP** de esta pestaña. **Tracker y gráfico** solo usan esto si **Alquiler** es la opción vinculante (no el otro radio).",
-        "zh": "框内 >**$0** 时用你的租金+杂费；否则用本页**邮编毛租金基准**。**跟踪与饼图**仅当上方**租**为绑定选项时用此数（非“两者皆 0”那项）。",
+        "en": "**Your** rent + utilities when the box is above **$0**; otherwise the **ZIP gross-rent benchmark** fills in. Totals use this path when you chose **Rent** at the top.",
+        "es": "Tu alquiler + servicios si la caja > **$0**; si no, la **referencia ZIP**. Los totales usan esto si elegiste **Alquiler** arriba.",
+        "zh": "填写 >**$0** 时用你的数字；否则用**邮编毛租金基准**。若在上方选了**租房**，合计与饼图走此路径。",
     },
     "house_owning_title": {"en": "Owning", "es": "Ser propietario", "zh": "自有住房"},
     "house_own_beds_caption": {

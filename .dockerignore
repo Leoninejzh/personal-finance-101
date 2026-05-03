@@ -1,0 +1,15 @@
+.git
+.gitignore
+.cursor
+__pycache__
+*.pyc
+.venv
+.pytest_cache
+*.md
+user_config.jsonl
+# 本地会话缓存，不应打进镜像
+data/wizard_snapshot.json
+data/wizard_user_inputs.json
+data/llm_advisor_context.json
+data/waterfall_pie_ledger.json
+data/waterfall_rag_context.json

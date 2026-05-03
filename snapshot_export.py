@@ -1024,6 +1024,7 @@ def collect_wizard_snapshot(ss: Mapping[str, Any]) -> dict[str, Any]:
             "zip_input": str(ss.get("dash_housing_zip", "") or ""),
             "rent_monthly": float(ss.get("dash_rent", 0) or 0),
             "own_on_mortgage_step": bool(ss.get("dash_own_mortgage_step", False)),
+            "own_baseline_mode": ss.get("dash_own_baseline_mode"),
             "own_median_confirmation": ss.get("dash_own_median_confirm"),
             "own_home_price": float(ss.get("dash_own_home_price", 0) or 0),
             "own_down_payment_pct": float(ss.get("dash_own_down_pct", 0) or 0),
@@ -1095,10 +1096,13 @@ def collect_wizard_snapshot(ss: Mapping[str, Any]) -> dict[str, Any]:
 def persist_snapshot(snap: dict[str, Any]) -> Path | None:
     if not disk_cache_enabled():
         return None
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    path = DATA_DIR / "wizard_snapshot.json"
-    path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
-    return path
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        path = DATA_DIR / "wizard_snapshot.json"
+        path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
+        return path
+    except OSError:
+        return None
 
 
 def snapshot_to_rag_plaintext(
@@ -1225,6 +1229,7 @@ WIZARD_USER_INPUT_KEYS: tuple[str, ...] = (
     "dash_mortgage",
     "dash_mortgage_cached",
     "dash_own_mortgage_step",
+    "dash_own_baseline_mode",
     "dash_own_median_confirm",
     "dash_own_home_price",
     "dash_own_down_pct",
