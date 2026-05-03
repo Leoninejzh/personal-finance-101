@@ -1,0 +1,8 @@
+# Minimalist Monochrome — pure B/W; accent = black (matches injected CSS).
+[theme]
+base = "light"
+primaryColor = "#000000"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#000000"
+font = "serif"
