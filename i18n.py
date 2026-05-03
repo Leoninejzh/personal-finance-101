@@ -145,9 +145,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "zh": "模型名称",
     },
     "chat_missing_openai_key": {
-        "en": "LLM OPEN AI key missing",
-        "es": "Falta la API key de OpenAI para el LLM",
-        "zh": "缺少 LLM OpenAI API Key",
+        "en": "Please enter your **OpenAI API key** in the field below to use the advisor.",
+        "es": "Introduce tu **API key de OpenAI** en el campo de abajo para usar el asesor.",
+        "zh": "请在下方填写 **OpenAI API Key** 以使用顾问对话。",
     },
     "chat_clear_button": {
         "en": "Clear chat",
@@ -179,10 +179,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Algo falló: `{err}`. Revisa la clave, el modelo y la conexión.",
         "zh": "出错了：`{err}`。请检查 Key、模型与网络。",
     },
-    "chat_demo_no_key": {
-        "en": "**Demo reply (no API key):**\n\n",
-        "es": "**Respuesta demo (sin API key):**\n\n",
-        "zh": "**演示回复（未填 API Key）：**\n\n",
+    "chat_reply_need_openai_key": {
+        "en": "Please enter your **OpenAI API key** in the left panel. Without it the advisor cannot be called. Your worksheet data is only sent to the model in the background with your question — it is **not** shown in this chat.",
+        "es": "Introduce tu **API key de OpenAI** en el panel izquierdo. Sin ella no se puede llamar al asesor. Tus datos solo se envían al modelo en segundo plano junto con tu pregunta — **no** aparecen aquí en el chat.",
+        "zh": "请在左侧填写 **OpenAI API Key**，否则无法调用顾问。你的问卷与现金流 JSON 只在后台随你的问题一并发给模型，**不会**显示在本对话框中。",
     },
     "api_empty_choices": {
         "en": "The assistant returned an empty message. Try again.",
@@ -1750,47 +1750,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Total estimated monthly entertainment & discretionary fun",
         "es": "Total estimado ocio y discrecional",
         "zh": "估算月娱乐与可自由支配合计",
-    },
-    # --- Offline chat demo reply ---
-    "chat_demo_header": {
-        "en": "**Demo assistant** — not a licensed professional; this is educational only.",
-        "es": "**Asistente demo** — no es un profesional licenciado; solo educativo.",
-        "zh": "**演示助手** — 非持牌专业人士；仅供教育。",
-    },
-    "chat_demo_baseline": {
-        "en": "Your saved baseline: **${income:,.0f}/mo** take-home, household **{family}**, **{vibe}** spending style.",
-        "es": "Tu línea base: **${income:,.0f}/mes** neto, hogar **{family}**, estilo **{vibe}**.",
-        "zh": "已保存基线：**${income:,.0f}/月** 实发，家庭 **{family}**，消费习惯 **{vibe}**。",
-    },
-    "chat_demo_modules": {
-        "en": "Use the modules in the wizard to think through housing, transportation, kids, groceries, fun, and investing — then validate any big decision with a real advisor.",
-        "es": "Usa los módulos para pensar vivienda, transporte, hijos, comida, ocio e inversión — valida decisiones grandes con un asesor real.",
-        "zh": "请用向导各模块梳理住房、出行、育儿、杂货、娱乐与投资 — 重大决定请与真人顾问核实。",
-    },
-    "chat_demo_extra_invest": {
-        "en": "\n\nOn investing: keep costs low, diversify, and match risk to your timeline — confirm details with a licensed advisor.",
-        "es": "\n\nSobre inversión: costes bajos, diversificación y riesgo acorde al plazo — confirma con un asesor licenciado.",
-        "zh": "\n\n投资：控制成本、分散风险、期限匹配 — 细节请咨询持牌顾问。",
-    },
-    "chat_demo_extra_debt": {
-        "en": "\n\nOn debt: prioritize high-interest balances and avoid taking new debt for discretionary items without a plan.",
-        "es": "\n\nSobre deuda: prioriza tipos altos y evita nueva deuda discrecional sin plan.",
-        "zh": "\n\n债务：优先还高息；无计划时避免为可自由支配消费新增负债。",
-    },
-    "chat_demo_ctx_open": {
-        "en": "\n\n---\n**Wizard snapshot (user-entered; for future RAG / LLM — demo excerpt):**\n```\n",
-        "es": "\n\n---\n**Instantánea del asistente (entrada del usuario — extracto demo):**\n```\n",
-        "zh": "\n\n---\n**向导快照（用户填写 — 演示摘录）：**\n```\n",
-    },
-    "chat_demo_ctx_close": {
-        "en": "\n```\n_Treat as user-supplied background; it may be incomplete or inconsistent._\n",
-        "es": "\n```\n_Trátalo como contexto del usuario; puede estar incompleto._\n",
-        "zh": "\n```\n_视为用户提供的背景，可能不完整或不一致。_\n",
-    },
-    "chat_demo_trunc": {
-        "en": "\n…(truncated for chat demo)",
-        "es": "\n…(truncado para demo)",
-        "zh": "\n…（演示已截断）",
     },
 }
 

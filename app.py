@@ -3972,8 +3972,6 @@ def _render_wizard_invest_panel() -> None:
     s_after_fun = float(_wiz_snap.savings_before_investment_usd_monthly(st.session_state))
     allocated_show = float(inc_tr) - s_after_fun
 
-    st.markdown("##### " + _i18n.t("inv_section_snapshot"))
-    st.caption(_i18n.t("inv_snapshot_caption"))
     ff, ff_warnings = _wiz_snap.build_funnel_finance_state_from_wizard_session(st.session_state)
     for msg in ff_warnings:
         st.warning(msg)
@@ -3992,36 +3990,6 @@ def _render_wizard_invest_panel() -> None:
     ) > 0:
         st.caption(_i18n.t("inv_caption_rent_mortgage"))
     keys_wf = list(_wiz_snap.TAKEHOME_ALLOCATION_PIE_KEYS)
-    with st.expander(_i18n.t("inv_expander_math")):
-        for i, k in enumerate(keys_wf):
-            st.markdown(
-                _i18n.t(
-                    "inv_line_item",
-                    label=_translate_alloc_row_display_index(i),
-                    amt=float(bd[k]),
-                )
-            )
-        st.markdown(
-            _i18n.t("inv_sum_lines", s=sum(float(v) for v in bd.values())),
-        )
-        st.markdown(_i18n.t("inv_takehome_match", inc=inc_tr))
-
-    if inc_tr > 0 and allocated_show < 1e-6:
-        st.info(_i18n.t("inv_info_mostly_zero"))
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric(_i18n.t("inv_metric_takehome_q"), f"${inc_tr:,.0f}/mo")
-    with col_b:
-        st.metric(
-            _i18n.t("inv_metric_allocated"),
-            f"${allocated_show:,.0f}/mo",
-            help=_i18n.t("inv_metric_allocated_help"),
-        )
-    st.metric(
-        _i18n.t("inv_metric_final"),
-        f"${s_after_fun:,.0f}/mo",
-        help=_i18n.t("inv_metric_final_help"),
-    )
 
     if allocated_show > 1e-6 and s_after_fun < -1e-6:
         st.warning(_i18n.t("inv_warn_deficit_living"))
@@ -4211,7 +4179,7 @@ def _openai_compatible_chat(
     return (msg.get("content") or "").strip()
 
 
-def _render_wizard_chat_panel(income: float, family: str, vibe: str) -> None:
+def _render_wizard_chat_panel() -> None:
     _render_wizard_spending_pie()
     _wiz_snap.refresh_session_derived_totals(st.session_state)
     _render_wizard_step_tracker("chat")
@@ -4250,79 +4218,41 @@ def _render_wizard_chat_panel(income: float, family: str, vibe: str) -> None:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    if prompt := st.chat_input(_i18n.t("chat_input_placeholder")):
+    _chat_api_key_ok = bool(str(st.session_state.get("llm_openai_api_key") or "").strip())
+    if prompt := st.chat_input(
+        _i18n.t("chat_input_placeholder"),
+        disabled=not _chat_api_key_ok,
+    ):
         st.session_state.advisor_messages.append({"role": "user", "content": prompt})
         api_key = (st.session_state.get("llm_openai_api_key") or "").strip()
         model = (st.session_state.get("llm_model") or "gpt-4o-mini").strip() or "gpt-4o-mini"
         base_url = (st.session_state.get("llm_base_url") or "").strip()
+
         payload = _wiz_snap.build_llm_advisor_context_payload(st.session_state)
         st.session_state["wizard_rag_plaintext"] = _wiz_snap.snapshot_to_rag_plaintext(
             payload["wizard_snapshot"],
             waterfall_ledger=payload["waterfall_pie_ledger"],
         )
-        rag_ctx = (st.session_state.get("wizard_rag_plaintext") or "").strip()
         ctx_compact = _compact_llm_context_for_api(payload)
         system_message = (
             f"{payload['system_instruction']}\n\n"
             f"USER_FINANCIAL_CONTEXT (JSON):\n{ctx_compact}"
         )
-        if api_key:
-            with st.spinner(_i18n.t("chat_spinner")):
-                try:
-                    reply = _openai_compatible_chat(
-                        api_key=api_key,
-                        model=model,
-                        base_url=base_url,
-                        system_content=system_message,
-                        messages=st.session_state.advisor_messages,
-                    )
-                except RuntimeError as e:
-                    reply = _i18n.t("chat_error_reply", err=str(e))
-        else:
-            demo = _demo_advisor_reply(
-                prompt,
-                income,
-                family,
-                vibe,
-                wizard_context=rag_ctx or None,
-            )
-            reply = _i18n.t("chat_demo_no_key") + demo
+        with st.spinner(_i18n.t("chat_spinner")):
+            try:
+                reply = _openai_compatible_chat(
+                    api_key=api_key,
+                    model=model,
+                    base_url=base_url,
+                    system_content=system_message,
+                    messages=st.session_state.advisor_messages,
+                )
+            except RuntimeError as e:
+                reply = _i18n.t("chat_error_reply", err=str(e))
+
         st.session_state.advisor_messages.append({"role": "assistant", "content": reply})
         _wiz_snap.persist_user_inputs_to_disk(st.session_state)
         st.rerun()
-
-
-def _demo_advisor_reply(
-    user_text: str,
-    income: float,
-    family: str,
-    vibe: str,
-    wizard_context: str | None = None,
-) -> str:
-    low = user_text.lower()
-    extra = ""
-    if "invest" in low or "stock" in low or "401" in low:
-        extra = _i18n.t("chat_demo_extra_invest")
-    if "debt" in low or "loan" in low:
-        extra += _i18n.t("chat_demo_extra_debt")
-    fam_d = _translate_family_option(family)
-    vibe_d = _translate_vibe_option(vibe)
-    ctx = ""
-    if wizard_context and wizard_context.strip():
-        cap = 12_000
-        body = wizard_context.strip()[:cap]
-        if len(wizard_context.strip()) > cap:
-            body += _i18n.t("chat_demo_trunc")
-        ctx = _i18n.t("chat_demo_ctx_open") + body + _i18n.t("chat_demo_ctx_close")
-    return (
-        _i18n.t("chat_demo_header")
-        + "\n\n"
-        + _i18n.t("chat_demo_baseline", income=income, family=fam_d, vibe=vibe_d)
-        + "\n\n"
-        + _i18n.t("chat_demo_modules")
-        + extra
-        + ctx
-    )
 
 
 def _render_post_onboarding_dashboard() -> None:
@@ -4483,7 +4413,7 @@ def _render_post_onboarding_dashboard() -> None:
                 _render_wizard_invest_panel()
 
             elif _slug == "chat":
-                _render_wizard_chat_panel(income, family, vibe)
+                _render_wizard_chat_panel()
 
         fb1, fb2, fb3 = st.columns([1, 2, 1])
         with fb1:
