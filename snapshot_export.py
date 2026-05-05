@@ -905,14 +905,13 @@ def build_waterfall_for_pie(ss: Mapping[str, Any], *, prefer_ledger_file: bool =
 
 
 # Wizard slug → which waterfall row(s) (0-based, same order as ``TAKEHOME_ALLOCATION_PIE_KEYS``) the
-# in-app **Take-home tracker** highlights for that page. Invest step has no tracker (see funnel / pie instead).
+# in-app **Take-home tracker** highlights for that page. Invest and chat steps have no tracker (pie / chat UI instead).
 WIZARD_SLUG_TO_WATERFALL_TRACKER_ROWS: dict[str, tuple[int, ...]] = {
     "housing": (0,),
     "car": (1,),
     "child": (2,),
     "grocery": (3,),
     "entertainment": (4,),
-    "chat": (7,),
 }
 
 

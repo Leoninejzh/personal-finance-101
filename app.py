@@ -3744,19 +3744,6 @@ def _render_wizard_step_tracker(slug: str) -> None:
             if k < len(row_idxs) - 1:
                 st.divider()
 
-        keys_all = keys
-        row_sum = sum(float(alloc[kk]) for kk in keys_all)
-        final_cushion = float(alloc[keys_all[-1]])
-        if slug == "chat":
-            st.caption(
-                _i18n.t(
-                    "trk_footer_chat",
-                    cushion=final_cushion,
-                    rowsum=row_sum,
-                    inc=inc,
-                )
-            )
-
 
 def _pie_prefer_ledger_file_default() -> bool:
     """Env: ``WISE_SPENDING_PIE_FROM_LEDGER_FILE=1|true|yes|on`` → default the dashboard checkbox to on."""
@@ -4182,7 +4169,6 @@ def _openai_compatible_chat(
 def _render_wizard_chat_panel() -> None:
     _render_wizard_spending_pie()
     _wiz_snap.refresh_session_derived_totals(st.session_state)
-    _render_wizard_step_tracker("chat")
     st.markdown("---")
     st.markdown(_i18n.t("chat_title"))
     if _wiz_snap.disk_cache_enabled():

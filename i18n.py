@@ -535,11 +535,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "**Tras este paso** = dinero antes de este paso − gasto de **{title}**.",
         "zh": "**本步之后** = 本步前的钱 − **{title}** 的支出。",
     },
-    "trk_footer_chat": {
-        "en": "**Full plan:** last row is **Final savings** ≈ **${cushion:,.0f}/mo** · **Sum of rows:** ${rowsum:,.0f}/mo vs take-home **${inc:,.0f}/mo**.",
-        "es": "**Plan completo:** última fila **Ahorro final** ≈ **${cushion:,.0f}/mes** · **Suma filas:** ${rowsum:,.0f}/mes vs ingreso **${inc:,.0f}/mes**.",
-        "zh": "**完整计划：** 末行 **最终结余** ≈ **${cushion:,.0f}/月** · **各行之和：** ${rowsum:,.0f}/月 对比实发 **${inc:,.0f}/月**。",
-    },
     # --- Pie UI ---
     "pie_checkbox_ledger": {
         "en": "Load the chart from a saved ledger file on disk",
